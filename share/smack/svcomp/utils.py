@@ -5,11 +5,12 @@ import subprocess
 import time
 from shutil import copyfile
 import smack.top
+import smack.frontend
 import filters
 from toSVCOMPformat import smackJsonToXmlGraph
 from random_testing import random_test
 
-def svcomp_frontend(args):
+def svcomp_frontend(input_file, args):
   """Generate Boogie code from SVCOMP-style C-language source(s)."""
 
   # enable static LLVM unroll pass
@@ -40,7 +41,7 @@ def svcomp_frontend(args):
       args.unroll = 100
     args.execute = executable
   else:
-    with open(args.input_files[0], "r") as sf:
+    with open(input_file, "r") as sf:
       sc = sf.read()
     if 'unsigned char b:2' in sc or "4294967294u" in sc:
       args.bit_precise = True
@@ -56,11 +57,16 @@ def svcomp_frontend(args):
   args.clang_options += " -DDISABLE_PTHREAD_ASSERTS"
   args.clang_options += " -include smack.h"
 
-  if os.path.splitext(args.input_files[0])[1] == ".i":
+  if os.path.splitext(input_file)[1] == ".i":
     # Ensure clang runs the preprocessor, even with .i extension.
     args.clang_options += " -x c"
 
-  smack.top.clang_frontend(args)
+  bc = smack.frontend.clang_frontend(args.input_files[0], args)
+
+  # run with no extra smack libraries
+  libs = set()
+
+  smack.top.link_bc_files([bc],libs,args)
 
 def svcomp_check_property(args):
   # Check if property is vanilla reachability, and return unknown otherwise
